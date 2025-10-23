@@ -17,6 +17,7 @@ class Colors(Enum):
     FT_GREEN = (15, 218, 83)
     SNAKE_HEAD = (144, 238, 144)  # Light green for head
     SNAKE_BODY = (34, 139, 34)    # Dark green for body
+    GRID_COLOR = (40, 40 , 40) # grey
 
 class Direction(Enum):
     RIGHT = 1
@@ -163,6 +164,14 @@ class SnakeGame():
     def _update_ui(self, to_display=[]):
 
         self.display.fill(Colors.BLACK.value)
+
+
+        #block grid
+        grid_color = Colors.GRID_COLOR.value
+        for x in range(0, self.width, self.block_size):
+            pygame.draw.line(self.display, grid_color, (x, 0), (x, self.height))
+        for y in range(0, self.height, self.block_size):
+            pygame.draw.line(self.display, grid_color, (0, y), (self.width, y))
 
         # Draw snake body (all segments except head)
         for pt in self.snake[1:]:
