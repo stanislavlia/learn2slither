@@ -1,10 +1,16 @@
 from game import SnakeGame, Direction, CLOCKWISE
 import pygame
 from loguru import logger
+import random
+
+
+MANUAL=True
+RANDOM=True
+
 
 def main():
 
-    manual=True
+    manual=MANUAL
 
     game = SnakeGame(
         window_height=600,
@@ -16,6 +22,9 @@ def main():
 
     while True:
         move = None
+        if RANDOM:
+            move = random.choice(CLOCKWISE)
+
         execute = True
 
         for event in pygame.event.get():
