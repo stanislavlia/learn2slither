@@ -1,0 +1,9 @@
+annotated-types==0.7.0
+loguru==0.7.3
+pydantic==2.12.3
+pydantic-core==2.41.4
+pydantic-settings==2.11.0
+pygame==2.6.1
+python-dotenv==1.1.1
+typing-extensions==4.15.0
+typing-inspection==0.4.2
