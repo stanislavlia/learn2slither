@@ -1,49 +1,32 @@
 from game import SnakeGame, Direction, CLOCKWISE
 import pygame
 from loguru import logger
-import random
+from agents import RandomAgent
 
-
-MANUAL=True
-RANDOM=False
-
+MANUAL = False  # Set to False to use agent
+RANDOM = True   # Set to True to use RandomAgent
+FPS = 30
 
 def main():
-
-    manual=MANUAL
-
     game = SnakeGame(
         window_height=600,
         window_width=800,
         block_size=20,
-        fps=5
+        fps=FPS
     )
-
-
+    
+    agent = RandomAgent()
+    
     while True:
         move = None
-        execute = True
-
-
-        if RANDOM:
-            # Random relative move: [straight, left, right]
-            # Create a one-hot encoded direction
-            rel_move = [0, 0, 0]
-            choice = random.randint(0, 2)
-            rel_move[choice] = 1
-            # Convert relative to absolute direction
-            move = game.relative_to_absolute(rel_move)
-
         
-
+        # Handle pygame events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-                break
+                return
             elif event.type == pygame.KEYDOWN:
-                execute = True
-                if event.key == pygame.K_SPACE:
-                    execute = not execute
+                # Manual controls override agent
                 if event.key == pygame.K_LEFT:
                     move = Direction.LEFT
                 elif event.key == pygame.K_UP:
@@ -52,26 +35,29 @@ def main():
                     move = Direction.RIGHT
                 elif event.key == pygame.K_DOWN:
                     move = Direction.DOWN
-
+        
+        # Get current game state
         prev_state_with_labels = game.get_state()
         prev_state = [element['value'] for element in prev_state_with_labels]
-
-        # if not manual:
-        #     action = agent.get_action(prev_state)
-        #     move = game.relative_to_absolute(action)
-
-        (reward, done, score) = game.play_step(
-            direction=move,
-        )
+        
+        # Agent makes decision if no manual input
+        if move is None and RANDOM and not MANUAL:
+            rel_move = agent.make_move_decision(prev_state_with_labels)
+            move = game.relative_to_absolute(rel_move)
+        
+        # Execute move
+        (reward, done, score) = game.play_step(direction=move)
+        
         if done:
-            logger.success(f"GAME OVER!")
+            logger.success(f"GAME OVER! Final Score: {score}")
+            game.reset()
             return
-
-        logger.info(f"Move: {move} | Reward: {reward}")
-
+        
+        logger.info(f"Move: {move.name if move else 'None'} | Reward: {reward:.2f} | Score: {score}")
+        
+        # Get next state
         next_state_with_labels = game.get_state()
         next_state = [element['value'] for element in next_state_with_labels]
-
 
 if __name__ == "__main__":
     main()

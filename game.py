@@ -173,7 +173,7 @@ class SnakeGame():
         for y in range(0, self.height, self.block_size):
             pygame.draw.line(self.display, grid_color, (0, y), (self.width, y))
 
-        # Draw snake body (all segments except head)
+        # Draw snake body
         for pt in self.snake[1:]:
             pygame.draw.rect(
                 self.display, Colors.SNAKE_BODY.value,
