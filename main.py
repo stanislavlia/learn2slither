@@ -3,14 +3,14 @@ import pygame
 from loguru import logger
 from agents import RandomAgent
 
-MANUAL = False  # Set to False to use agent
-RANDOM = True   # Set to True to use RandomAgent
-FPS = 30
+MANUAL = True  # Set to False to use agent
+RANDOM = False   # Set to True to use RandomAgent
+FPS = 4
 
 def main():
     game = SnakeGame(
-        window_height=600,
-        window_width=800,
+        window_height=1000,
+        window_width=1000,
         block_size=20,
         fps=FPS
     )

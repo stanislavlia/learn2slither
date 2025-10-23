@@ -51,6 +51,9 @@ class SnakeGame():
         if (window_height % (block_size * 2)) or (window_width % (block_size * 2)):
             raise ValueError(f"Window height and width should be divsible by {block_size * 2}")
 
+        pygame.init()
+        pygame.font.init()
+
         #Settings
         self.width = window_width
         self.height = window_height
@@ -58,7 +61,10 @@ class SnakeGame():
         self.fps = fps
         self.is_invisible = is_invisible
         self.average_over_n_prev_steps = 10
-
+        self.font_size = 25
+        self.font = pygame.font.SysFont('arial', self.font_size)
+        
+        
 
         # rewards
         self.green_apple_reward = green_apple_reward
@@ -207,8 +213,36 @@ class SnakeGame():
             line = self.font.render(line, True, Colors.WHITE.value)
             self.display.blit(line, (x, y))
             y += self.font_size * 1.5
+        
+        # Draw score panel
+        self._draw_score_panel()
 
         pygame.display.flip()
+
+    def _draw_score_panel(self):
+        """Draw a score panel at the top of the screen"""
+        # Panel background
+        panel_height = 40
+        panel_rect = pygame.Rect(0, 0, self.width, panel_height)
+        pygame.draw.rect(self.display, (50, 50, 50), panel_rect)
+        
+        # Draw border
+        pygame.draw.rect(self.display, Colors.WHITE.value, panel_rect, 2)
+        
+        # Score text
+        score_text = f"Score: {self.score}"
+        score_surface = self.font.render(score_text, True, Colors.WHITE.value)
+        self.display.blit(score_surface, (10, 10))
+        
+        # Snake length text
+        length_text = f"Length: {len(self.snake)}"
+        length_surface = self.font.render(length_text, True, Colors.WHITE.value)
+        self.display.blit(length_surface, (150, 10))
+        
+        # Direction text
+        direction_text = f"Direction: {self.direction.name}"
+        direction_surface = self.font.render(direction_text, True, Colors.WHITE.value)
+        self.display.blit(direction_surface, (320, 10))
 
     def _get_movement_std(self):
         """Calculates how much snake moving from one dir to another"""
