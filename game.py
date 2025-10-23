@@ -15,7 +15,8 @@ class Colors(Enum):
     FT_RED = (232, 33, 39)
     FT_BLUE = (0, 186, 188)
     FT_GREEN = (15, 218, 83)
-
+    SNAKE_HEAD = (144, 238, 144)  # Light green for head
+    SNAKE_BODY = (34, 139, 34)    # Dark green for body
 
 class Direction(Enum):
     RIGHT = 1
@@ -157,39 +158,7 @@ class SnakeGame():
             (i + 1) % 4,  # right
         ]
         return CLOCKWISE[choices[np.argmax(direction)]]
-    
 
-    # def _update_ui(self, to_display=[]):
-    
-    #     self.display.fill(Colors.BLACK.value)
-
-    #     for pt in self.snake:
-    #         pygame.draw.rect(
-    #             self.display, Colors.WHITE.value,
-    #             pygame.Rect(pt.x, pt.y, self.block_size, self.block_size)
-    #         )
-
-    #     for pt in self.green_apples:
-    #         pygame.draw.circle(
-    #             self.display, Colors.FT_GREEN.value,
-    #             (pt.x + self.block_size // 2, pt.y + self.block_size // 2),
-    #             self.block_size // 2
-    #         )
-
-    #     for pt in self.red_apples:
-    #         pygame.draw.circle(
-    #             self.display, Colors.RED.value,
-    #             (pt.x + self.block_size // 2, pt.y + self.block_size // 2),
-    #             self.block_size // 2
-    #         )
-
-    #     x, y = self.block_size // 2, self.block_size // 2
-    #     for line in to_display:
-    #         line = self.font.render(line, True, Colors.WHITE.value)
-    #         self.display.blit(line, (x, y))
-    #         y += self.font_size * 1.5
-
-    #     pygame.display.flip()
 
     def _update_ui(self, to_display=[]):
 
@@ -198,7 +167,7 @@ class SnakeGame():
         # Draw snake body (all segments except head)
         for pt in self.snake[1:]:
             pygame.draw.rect(
-                self.display, Colors.FT_BLUE.value,
+                self.display, Colors.SNAKE_BODY.value,
                 pygame.Rect(pt.x, pt.y, self.block_size, self.block_size)
             )
         
@@ -206,7 +175,7 @@ class SnakeGame():
         if len(self.snake) > 0:
             head = self.snake[0]
             pygame.draw.rect(
-                self.display, Colors.BLUE.value,
+                self.display, Colors.SNAKE_HEAD.value,
                 pygame.Rect(head.x, head.y, self.block_size, self.block_size)
             )
 
@@ -317,14 +286,16 @@ class SnakeGame():
             self._generate_green_apples()
         
         #eaten red apple
-        if self.head in self.red_apples:
+        elif self.head in self.red_apples:
             reward = self.red_apple_reward
             self.red_apples.remove(self.head) #remove apple after eaten
             self._generate_red_apples()
 
             #lose 2 pieces of tail
-            self.snake.pop()
-            self.snake.pop()
+            if len(self.snake) > 1:
+                self.snake.pop()
+            if len(self.snake) > 1:
+                self.snake.pop()
         
         else:
             #lose 1 piece of tail

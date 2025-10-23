@@ -5,7 +5,7 @@ import random
 
 
 MANUAL=True
-RANDOM=True
+RANDOM=False
 
 
 def main():
@@ -16,16 +16,25 @@ def main():
         window_height=600,
         window_width=800,
         block_size=20,
-        fps=10
+        fps=5
     )
 
 
     while True:
         move = None
-        if RANDOM:
-            move = random.choice(CLOCKWISE)
-
         execute = True
+
+
+        if RANDOM:
+            # Random relative move: [straight, left, right]
+            # Create a one-hot encoded direction
+            rel_move = [0, 0, 0]
+            choice = random.randint(0, 2)
+            rel_move[choice] = 1
+            # Convert relative to absolute direction
+            move = game.relative_to_absolute(rel_move)
+
+        
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
