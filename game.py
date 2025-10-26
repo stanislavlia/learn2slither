@@ -355,7 +355,21 @@ class SnakeGame():
             game_over = True
         
         return reward, game_over, self.score
-            
+    
+    def draw_stats_overlay(self, stats_text: list):
+        """Draw training stats as overlay on game window"""
+        overlay = pygame.Surface((250, 200))
+        overlay.set_alpha(220)
+        overlay.fill((30, 30, 40))
+        
+        self.display.blit(overlay, (self.width - 260, 10))
+        
+        y = 20
+        for line in stats_text:
+            text = self.font.render(line, True, (255, 255, 255))
+            self.display.blit(text, (self.width - 250, y))
+            y += 25
+                
 
     def get_state(self):
         """ Return the current state of the game
