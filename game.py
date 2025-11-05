@@ -315,12 +315,11 @@ class SnakeGame():
 
     def _is_collision(self, point):
         """Check collision with walls or self"""
-        # Check walls - game area is below panel
         if (
-            point.x > self.width - self.block_size
+            point.x >= self.width
             or point.x < 0
-            or point.y > self.height - self.block_size
-            or point.y < self.panel_height  # Can't go into panel area
+            or point.y >= self.height
+            or point.y < self.panel_height
         ):
             return True
         
@@ -466,3 +465,67 @@ class SnakeGame():
         ]
         
         return state
+    
+    def print_state_vision(self, state: list, action: str = None):
+        """
+        Print state vision in simple terminal format (matches PDF page 8)
+        
+        Args:
+            state: List of state dictionaries
+            action: Action taken (optional)
+        """
+        # Convert state list to dict
+        state_dict = {item['label']: item['value'] for item in state}
+        
+        # Map state values to characters
+        def get_char(danger, green, red):
+            if danger:
+                return 'W'
+            elif green:
+                return 'G'
+            elif red:
+                return 'R'
+            else:
+                return '0'
+        
+        # Get vision in each direction
+        straight = get_char(
+            state_dict.get('danger_straight', False),
+            state_dict.get('green_straight', False),
+            state_dict.get('red_straight', False)
+        )
+        
+        left = get_char(
+            state_dict.get('danger_left', False),
+            state_dict.get('green_left', False),
+            state_dict.get('red_left', False)
+        )
+        
+        right = get_char(
+            state_dict.get('danger_right', False),
+            state_dict.get('green_right', False),
+            state_dict.get('red_right', False)
+        )
+        
+        behind = get_char(
+            state_dict.get('danger_behind', False),
+            state_dict.get('green_behind', False),
+            state_dict.get('red_behind', False)
+        )
+        
+        # Print in simple format
+        print("\n" + "="*50)
+        print("SNAKE VISION (Relative to snake's head)")
+        print("="*50)
+        print(f"STRAIGHT:  {straight}")
+        print(f"LEFT:      {left}")
+        print(f"HEAD:      H (reference point)")
+        print(f"RIGHT:     {right}")
+        print(f"BEHIND:    {behind}")
+        print("-"*50)
+        print("Legend: W=Wall/Danger, G=Green Apple, R=Red Apple, 0=Empty, H=Head")
+        
+        if action:
+            print(f"\nACTION TAKEN: {action.upper()}")
+        
+        print("="*50 + "\n")

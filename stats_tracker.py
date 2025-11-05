@@ -1,12 +1,10 @@
 import numpy as np
-from typing import List, Dict, Tuple
+from typing import List, Dict
 from loguru import logger
-import json
-from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib
 import os
-matplotlib.use('Agg')  # Non-interactive backend for saving plots
+matplotlib.use('Agg')
 
 
 class TrainingStatsTracker():

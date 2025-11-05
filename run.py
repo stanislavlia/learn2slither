@@ -6,6 +6,7 @@ from stats_tracker import TrainingStatsTracker
 import sys
 import os
 import click
+import numpy as np
 from datetime import datetime
 
 
@@ -26,6 +27,8 @@ from datetime import datetime
               help='Step-by-step mode (press space to advance)')
 @click.option('--inference', is_flag=True,
               help='Inference mode: disable learning (pure exploitation)')
+@click.option('--print-state', is_flag=True,
+              help='Print game state on each step')
 @click.option('--lr', default=0.1, type=float,
               help='Learning rate')
 @click.option('--discount', default=0.95, type=float,
@@ -57,7 +60,7 @@ from datetime import datetime
 @click.option('--log-level', type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']),
               default='INFO', help='Logging level')
 def main(sessions, runname, load, save_interval, visual, fps, step_by_step,
-         inference, lr, discount, epsilon, epsilon_start, epsilon_decay,
+         inference, print_state, lr, discount, epsilon, epsilon_start, epsilon_decay,
          epsilon_decay_epochs, init_strategy, alive_reward, green_reward,
          red_reward, death_reward, window_height, window_width, block_size,
          log_level):
@@ -179,6 +182,14 @@ def main(sessions, runname, load, save_interval, visual, fps, step_by_step,
             rel_move = agent.make_move_decision(prev_state_with_labels)
             move = game.relative_to_absolute(rel_move)
             
+            # Print state vision if debug enabled
+            if print_state:
+                # Convert action to string
+                action_names = {0: 'straight', 1: 'left', 2: 'right'}
+                action_name = action_names[np.argmax(rel_move)]
+                game.print_state_vision(prev_state_with_labels, action_name)
+
+
             # Get current epsilon for display
             current_epsilon = agent.get_current_epsilon()
             
