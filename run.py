@@ -218,11 +218,6 @@ def main(sessions, runname, load, save_interval, visual, fps, step_by_step,
                 # End epoch tracking
                 current_epsilon = agent.get_current_epsilon()
                 stats_tracker.end_epoch(final_score=score, epsilon=current_epsilon)
-                
-                # Increment epoch counter for epsilon decay (only in training)
-                if not inference:
-                    agent.qtable.increment_epoch()
-                
                 game.reset()
                 CURRENT_EPOCH += 1
                 
@@ -241,14 +236,10 @@ def main(sessions, runname, load, save_interval, visual, fps, step_by_step,
         if not inference:
             # Training mode: save model and plots
             final_model_path = f"./models/{runname}_qtable_final.json"
-            final_metrics_path = f"./models/{runname}_metrics_final.json"
             final_plot_path = f"./plots/{runname}_training_final.png"
-            final_detailed_path = f"./plots/{runname}_detailed_final.png"
             
             agent.qtable.save_qtable(filepath=final_model_path)
-            stats_tracker.save_metrics(filepath=final_metrics_path)
             stats_tracker.save_plots(filepath=final_plot_path, title=f"Final Training Results - {runname}")
-            stats_tracker.save_detailed_plots(filepath=final_detailed_path, title=f"Detailed Analysis - {runname}")
             
             logger.success(f"Training complete! {sessions} epochs finished.")
             logger.success(f"Final model saved to: {final_model_path}")
