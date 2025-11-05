@@ -38,7 +38,7 @@ from datetime import datetime
               help='Enable/disable epsilon decay')
 @click.option('--epsilon-decay-epochs', default=50000, type=int,
               help='Number of epochs for epsilon decay')
-@click.option('--init-strategy', type=click.Choice(['zero', 'positive', 'optimistic', 'random']),
+@click.option('--init-strategy', type=click.Choice(['zero', 'positive', 'random']),
               default='zero', help='Q-table initialization strategy')
 @click.option('--alive-reward', default=-2.5, type=float,
               help='Reward for staying alive')
