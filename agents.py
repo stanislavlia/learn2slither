@@ -34,13 +34,19 @@ class QAgent(AgentBase):
                  discount: float = 0.95,
                  exploration_prob: float = 0.1,
                  init_strategy: str = "zero",
-                 epochs: int = 1000):
+                 epochs: int = 1000,
+                 use_epsilon_decay: bool = False,
+                 epsilon_start: float = 0.9,
+                 epsilon_decay_steps: int = 50000):
         self.epochs = epochs
         self.qtable = QTable(
             learning_rate=learning_rate,
             discount=discount,
             exploration_prob=exploration_prob,
-            init_strategy=init_strategy
+            init_strategy=init_strategy,
+            use_epsilon_decay=use_epsilon_decay,
+            epsilon_start=epsilon_start,
+            epsilon_decay_steps=epsilon_decay_steps
         )
         self.current_epoch = 0
         self.last_action_name = None  # Store the last action name for updates
@@ -50,7 +56,7 @@ class QAgent(AgentBase):
         Makes a decision using Q-table with epsilon-greedy strategy
         Returns a one-hot encoded relative action [straight, left, right]
         """
-        # Get action from Q-table (uses epsilon-greedy internally)
+        # Get action from Q-table (uses epsilon-greedy internally with decay)
         action_name = self.qtable.get_action(game_state)
         
         # Store the action name for later update
@@ -84,3 +90,11 @@ class QAgent(AgentBase):
             reward=reward,
             next_state=next_state
         )
+    
+    def load_from_file(self, path: str):
+        """Load Q-table from file"""
+        self.qtable = QTable.load_qtable(path)
+    
+    def get_current_epsilon(self) -> float:
+        """Get current epsilon value"""
+        return self.qtable.get_current_epsilon()

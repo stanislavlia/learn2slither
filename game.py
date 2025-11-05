@@ -54,9 +54,13 @@ class SnakeGame():
         pygame.init()
         pygame.font.init()
 
-        #Settings
+        # Panel settings
+        self.panel_height = 40
+        
+        # Settings
         self.width = window_width
         self.height = window_height
+        self.game_height = window_height - self.panel_height  # Game area excludes panel
         self.block_size = block_size
         self.fps = fps
         self.is_invisible = is_invisible
@@ -64,8 +68,6 @@ class SnakeGame():
         self.font_size = 25
         self.font = pygame.font.SysFont('arial', self.font_size)
         
-        
-
         # rewards
         self.green_apple_reward = green_apple_reward
         self.red_apple_reward = red_apple_reward
@@ -79,22 +81,22 @@ class SnakeGame():
         self.green_apples = []
         self.red_apples = []
         
-        #pygame-specific
+        # pygame-specific
         self.display = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption(title="Learn2Slither - RL Agent for SnakeGame")
         self.clock = pygame.time.Clock()
         self.reset()
 
     def reset(self):
-
         self.move_history = []
         self.direction = random.choice(list(Direction))
+        
+        # Generate head position in game area (below panel)
         self.head = Point(
-            random.randint(0, (self.width - self.block_size)
-                           // self.block_size) * self.block_size,
-            random.randint(0, (self.height - self.block_size)
-                           // self.block_size) * self.block_size,
+            random.randint(0, (self.width - self.block_size) // self.block_size) * self.block_size,
+            self.panel_height + random.randint(0, (self.game_height - self.block_size) // self.block_size) * self.block_size,
         )
+        
         self.snake = [
             self.head,
             Point(self.head.x - self.block_size, self.head.y),
@@ -106,35 +108,30 @@ class SnakeGame():
         self._generate_green_apples()
         self._generate_red_apples()
 
-
     def _get_random_coordinates(self):
-
-        x = random.randint(0, (self.width - self.block_size)
-                               // self.block_size) * self.block_size
-        y = random.randint(0, (self.height - self.block_size)
-                               // self.block_size) * self.block_size
+        """Generate random coordinates in game area (below panel)"""
+        x = random.randint(0, (self.width - self.block_size) // self.block_size) * self.block_size
+        y = self.panel_height + random.randint(0, (self.game_height - self.block_size) // self.block_size) * self.block_size
         
         return Point(x, y)
 
     def _generate_green_apples(self):
-        
         while len(self.green_apples) < self.green_apple_count:
             coord = self._get_random_coordinates()
             if (coord in self.snake
                 or coord in self.green_apples
-                or coord in self.green_apples):
+                or coord in self.red_apples):  # Fixed: was checking green_apples twice
                 continue
             
             self.green_apples.append(coord)
             logger.debug(f"Generated GREEN APPLE at {coord}")
     
     def _generate_red_apples(self):
-        
         while len(self.red_apples) < self.red_apple_count:
             coord = self._get_random_coordinates()
             if (coord in self.snake
                 or coord in self.green_apples
-                or coord in self.green_apples):
+                or coord in self.red_apples):  # Fixed: was checking green_apples twice
                 continue
             
             self.red_apples.append(coord)
@@ -152,7 +149,7 @@ class SnakeGame():
         elif direction == Direction.UP:
             y -= self.block_size
 
-        #set head of snake
+        # Set head of snake
         self.head = Point(x, y)
 
         return direction
@@ -166,18 +163,28 @@ class SnakeGame():
         ]
         return CLOCKWISE[choices[np.argmax(direction)]]
 
-
     def _update_ui(self, to_display=[]):
-
         self.display.fill(Colors.BLACK.value)
 
+        # Draw score panel FIRST (at top)
+        self._draw_score_panel()
 
-        #block grid
+        # Draw grid in game area only (below panel)
         grid_color = Colors.GRID_COLOR.value
         for x in range(0, self.width, self.block_size):
-            pygame.draw.line(self.display, grid_color, (x, 0), (x, self.height))
-        for y in range(0, self.height, self.block_size):
-            pygame.draw.line(self.display, grid_color, (0, y), (self.width, y))
+            pygame.draw.line(self.display, grid_color, 
+                           (x, self.panel_height), 
+                           (x, self.height))
+        for y in range(self.panel_height, self.height, self.block_size):
+            pygame.draw.line(self.display, grid_color, 
+                           (0, y), 
+                           (self.width, y))
+
+        # Draw separator line between panel and game
+        pygame.draw.line(self.display, Colors.WHITE.value,
+                        (0, self.panel_height),
+                        (self.width, self.panel_height),
+                        2)
 
         # Draw snake body
         for pt in self.snake[1:]:
@@ -194,6 +201,7 @@ class SnakeGame():
                 pygame.Rect(head.x, head.y, self.block_size, self.block_size)
             )
 
+        # Draw apples
         for pt in self.green_apples:
             pygame.draw.circle(
                 self.display, Colors.FT_GREEN.value,
@@ -208,22 +216,16 @@ class SnakeGame():
                 self.block_size // 2
             )
 
-        x, y = self.block_size // 2, self.block_size // 2
-        for line in to_display:
-            line = self.font.render(line, True, Colors.WHITE.value)
-            self.display.blit(line, (x, y))
-            y += self.font_size * 1.5
-        
-        # Draw score panel
-        self._draw_score_panel()
+        # Draw stats overlay (if provided)
+        if to_display:
+            self._draw_stats_overlay(to_display)
 
         pygame.display.flip()
 
     def _draw_score_panel(self):
         """Draw a score panel at the top of the screen"""
         # Panel background
-        panel_height = 40
-        panel_rect = pygame.Rect(0, 0, self.width, panel_height)
+        panel_rect = pygame.Rect(0, 0, self.width, self.panel_height)
         pygame.draw.rect(self.display, (50, 50, 50), panel_rect)
         
         # Draw border
@@ -232,17 +234,46 @@ class SnakeGame():
         # Score text
         score_text = f"Score: {self.score}"
         score_surface = self.font.render(score_text, True, Colors.WHITE.value)
-        self.display.blit(score_surface, (10, 10))
+        self.display.blit(score_surface, (10, 8))
         
         # Snake length text
         length_text = f"Length: {len(self.snake)}"
         length_surface = self.font.render(length_text, True, Colors.WHITE.value)
-        self.display.blit(length_surface, (150, 10))
+        self.display.blit(length_surface, (150, 8))
         
         # Direction text
         direction_text = f"Direction: {self.direction.name}"
         direction_surface = self.font.render(direction_text, True, Colors.WHITE.value)
-        self.display.blit(direction_surface, (320, 10))
+        self.display.blit(direction_surface, (320, 8))
+
+    def _draw_stats_overlay(self, stats_text: list):
+        """Draw training stats as overlay on game window (top-left corner)"""
+        overlay_width = 280
+        overlay_height = len(stats_text) * 28 + 20
+        
+        # Create more transparent overlay
+        overlay = pygame.Surface((overlay_width, overlay_height))
+        overlay.set_alpha(180)  # More transparent (was 220)
+        overlay.fill((30, 30, 40))
+        
+        # Position at top-left corner, below panel
+        overlay_x = 10  # Left side with small margin
+        overlay_y = self.panel_height + 10  # Below panel
+        
+        self.display.blit(overlay, (overlay_x, overlay_y))
+        
+        # Draw border for better visibility
+        border_rect = pygame.Rect(overlay_x, overlay_y, overlay_width, overlay_height)
+        pygame.draw.rect(self.display, (100, 100, 100), border_rect, 1)
+        
+        # Draw text
+        y = overlay_y + 10
+        small_font = pygame.font.SysFont('arial', 18)
+        for line in stats_text:
+            if line:  # Skip empty lines
+                text = small_font.render(line, True, (255, 255, 255))
+                self.display.blit(text, (overlay_x + 10, y))
+                y += 25
 
     def _get_movement_std(self):
         """Calculates how much snake moving from one dir to another"""
@@ -251,11 +282,11 @@ class SnakeGame():
         
         movement_history = [trace["head"] for trace in self.move_history[:self.average_over_n_prev_steps]]
         
-        #compute std + normalize by block size
+        # Compute std + normalize by block size
         x_coord_std = np.std(np.array([p.x for p in movement_history])) / self.block_size
         y_coord_std = np.std(np.array([p.y for p in movement_history])) / self.block_size
 
-        #average std of 2 coords
+        # Average std of 2 coords
         return (x_coord_std + y_coord_std) / 2
     
     def _is_there_point(self, from_point, to_points, direction):
@@ -283,14 +314,17 @@ class SnakeGame():
         return False
 
     def _is_collision(self, point):
-
+        """Check collision with walls or self"""
+        # Check walls - game area is below panel
         if (
             point.x > self.width - self.block_size
             or point.x < 0
             or point.y > self.height - self.block_size
-            or point.y < 0
+            or point.y < self.panel_height  # Can't go into panel area
         ):
             return True
+        
+        # Check self-collision
         if point in self.snake[1:]:
             return True
 
@@ -305,43 +339,43 @@ class SnakeGame():
         )
         self.move_history.append(
             {
-                "head" : self.head,
-                "move" : self.direction
+                "head": self.head,
+                "move": self.direction
             }
         )
         
-        #insert head of snake to begining
+        # Insert head of snake to beginning
         self.snake.insert(0, self.head)
         self.score = len(self.snake) - 3
         
-        #Estimate Reward
+        # Estimate Reward
         game_over = False
-        reward  = None
+        reward = None
         if len(self.move_history) > 2:
             reward = self.alive_reward / (self._get_movement_std() ** 3)
         else:
             reward = self.alive_reward
         
-        #eaten green apple
+        # Eaten green apple
         if self.head in self.green_apples:
             reward = self.green_apple_reward
-            self.green_apples.remove(self.head) #remove apple after eaten
+            self.green_apples.remove(self.head)
             self._generate_green_apples()
         
-        #eaten red apple
+        # Eaten red apple
         elif self.head in self.red_apples:
             reward = self.red_apple_reward
-            self.red_apples.remove(self.head) #remove apple after eaten
+            self.red_apples.remove(self.head)
             self._generate_red_apples()
 
-            #lose 2 pieces of tail
+            # Lose 2 pieces of tail
             if len(self.snake) > 1:
                 self.snake.pop()
             if len(self.snake) > 1:
                 self.snake.pop()
         
         else:
-            #lose 1 piece of tail
+            # Lose 1 piece of tail
             self.snake.pop()
 
         if not self.is_invisible:
@@ -355,100 +389,80 @@ class SnakeGame():
             game_over = True
         
         return reward, game_over, self.score
-    
-    def draw_stats_overlay(self, stats_text: list):
-        """Draw training stats as overlay on game window"""
-        overlay = pygame.Surface((250, 200))
-        overlay.set_alpha(220)
-        overlay.fill((30, 30, 40))
-        
-        self.display.blit(overlay, (self.width - 260, 10))
-        
-        y = 20
-        for line in stats_text:
-            text = self.font.render(line, True, (255, 255, 255))
-            self.display.blit(text, (self.width - 250, y))
-            y += 25
-                
 
     def get_state(self):
-        """ Return the current state of the game
-        """
+        """ Return the current state of the game """
         head = self.snake[0] if len(self.snake) > 0 else self.head
-        direct_left = Point(head.x - self.block_size, head.y)
-        direct_right = Point(head.x + self.block_size, head.y)
-        direct_up = Point(head.x, head.y - self.block_size)
-        direct_down = Point(head.x, head.y + self.block_size)
-
-        dir_l = self.direction == Direction.LEFT
-        dir_r = self.direction == Direction.RIGHT
-        dir_u = self.direction == Direction.UP
-        dir_d = self.direction == Direction.DOWN
-
+        
+        # Calculate relative directions
         clock = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
-
         current = clock.index(self.direction)
         straight = clock[current]
         left = clock[(current - 1) % 4]
         right = clock[(current + 1) % 4]
-
-        previous = self.move_history[-2]['move'] if len(
-            self.move_history) > 1 else self.direction
-        previous = clock.index(previous)
-        last_move_straight = previous == current
-        last_move_left = previous == (current - 1) % 4
-        last_move_right = previous == (current + 1) % 4
-
+        behind = clock[(current + 2) % 4]
+        
+        # Calculate danger in each relative direction
+        dir_l = self.direction == Direction.LEFT
+        dir_r = self.direction == Direction.RIGHT
+        dir_u = self.direction == Direction.UP
+        dir_d = self.direction == Direction.DOWN
+        
+        direct_left = Point(head.x - self.block_size, head.y)
+        direct_right = Point(head.x + self.block_size, head.y)
+        direct_up = Point(head.x, head.y - self.block_size)
+        direct_down = Point(head.x, head.y + self.block_size)
+        
+        # Danger straight
+        danger_straight = (
+            (dir_r and self._is_collision(direct_right)) or
+            (dir_l and self._is_collision(direct_left)) or
+            (dir_u and self._is_collision(direct_up)) or
+            (dir_d and self._is_collision(direct_down))
+        )
+        
+        # Danger left (relative to current direction)
+        danger_left = (
+            (dir_d and self._is_collision(direct_right)) or
+            (dir_u and self._is_collision(direct_left)) or
+            (dir_r and self._is_collision(direct_up)) or
+            (dir_l and self._is_collision(direct_down))
+        )
+        
+        # Danger right (relative to current direction)
+        danger_right = (
+            (dir_u and self._is_collision(direct_right)) or
+            (dir_d and self._is_collision(direct_left)) or
+            (dir_l and self._is_collision(direct_up)) or
+            (dir_r and self._is_collision(direct_down))
+        )
+        
+        # Danger behind (relative to current direction)
+        danger_behind = (
+            (dir_l and self._is_collision(direct_right)) or
+            (dir_r and self._is_collision(direct_left)) or
+            (dir_d and self._is_collision(direct_up)) or
+            (dir_u and self._is_collision(direct_down))
+        )
+        
         state = [
-            {
-                "label": "move_index",
-                "value": self._get_movement_std(),
-            },
-            {
-                "label": "last_move_straight",
-                "value": last_move_straight,
-            },
-            {
-                "label": "last_move_left",
-                "value": last_move_left,
-            },
-            {
-                "label": "last_move_right",
-                "value": last_move_right,
-            },
-            {
-                "label": "danger_straight",
-                "value": (dir_r and self._is_collision(direct_right))
-                or (dir_l and self._is_collision(direct_left))
-                or (dir_u and self._is_collision(direct_up))
-                or (dir_d and self._is_collision(direct_down)),
-            },
-            {
-                "label": "danger_left",
-                "value": (dir_d and self._is_collision(direct_right))
-                or (dir_u and self._is_collision(direct_left))
-                or (dir_r and self._is_collision(direct_up))
-                or (dir_l and self._is_collision(direct_down)),
-            },
-            {
-                "label": "danger_right",
-                "value": (dir_u and self._is_collision(direct_right))
-                or (dir_d and self._is_collision(direct_left))
-                or (dir_l and self._is_collision(direct_up))
-                or (dir_r and self._is_collision(direct_down)),
-            },
-            {"label": "green_apple_straight",
-             "value": self._is_there_point(head, self.green_apples, straight)},
-            {"label": "green_apple_left",
-             "value": self._is_there_point(head, self.green_apples, left)},
-            {"label": "green_apple_right",
-             "value": self._is_there_point(head, self.green_apples, right)},
-            {"label": "red_apple_straight",
-             "value": self._is_there_point(head, self.red_apples, straight)},
-            {"label": "red_apple_left",
-             "value": self._is_there_point(head, self.red_apples, left)},
-            {"label": "red_apple_right",
-             "value": self._is_there_point(head, self.red_apples, right)}
+            # Danger states
+            {"label": "danger_straight", "value": danger_straight},
+            {"label": "danger_left", "value": danger_left},
+            {"label": "danger_right", "value": danger_right},
+            {"label": "danger_behind", "value": danger_behind},
+            
+            # Green apple states
+            {"label": "green_straight", "value": self._is_there_point(head, self.green_apples, straight)},
+            {"label": "green_left", "value": self._is_there_point(head, self.green_apples, left)},
+            {"label": "green_right", "value": self._is_there_point(head, self.green_apples, right)},
+            {"label": "green_behind", "value": self._is_there_point(head, self.green_apples, behind)},
+            
+            # Red apple states
+            {"label": "red_straight", "value": self._is_there_point(head, self.red_apples, straight)},
+            {"label": "red_left", "value": self._is_there_point(head, self.red_apples, left)},
+            {"label": "red_right", "value": self._is_there_point(head, self.red_apples, right)},
+            {"label": "red_behind", "value": self._is_there_point(head, self.red_apples, behind)}
         ]
-
+        
         return state

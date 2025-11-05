@@ -3,6 +3,10 @@ from typing import List, Dict, Tuple
 from loguru import logger
 import json
 from datetime import datetime
+import matplotlib.pyplot as plt
+import matplotlib
+import os
+matplotlib.use('Agg')  # Non-interactive backend for saving plots
 
 
 class TrainingStatsTracker():
@@ -19,6 +23,7 @@ class TrainingStatsTracker():
         self.epoch_rewards = []
         self.epoch_scores = []
         self.epoch_steps = []
+        self.epoch_epsilons = []  # Track epsilon values
         
         # Track metrics per step (for current epoch)
         self.current_epoch_rewards = []
@@ -48,12 +53,13 @@ class TrainingStatsTracker():
         if state_tuple is not None:
             self.visited_states.add(state_tuple)
     
-    def end_epoch(self, final_score: int):
+    def end_epoch(self, final_score: int, epsilon: float = None):
         """
         Mark end of epoch and calculate statistics
         
         Args:
             final_score: Final score achieved in this epoch
+            epsilon: Current epsilon value (optional)
         """
         # Calculate epoch statistics
         total_reward = sum(self.current_epoch_rewards)
@@ -64,6 +70,10 @@ class TrainingStatsTracker():
         self.epoch_scores.append(final_score)
         self.epoch_steps.append(self.current_epoch_steps)
         
+        # Store epsilon if provided
+        if epsilon is not None:
+            self.epoch_epsilons.append(epsilon)
+        
         # Calculate moving averages
         start_idx = max(0, len(self.epoch_rewards) - self.window_size)
         self.avg_rewards.append(np.mean(self.epoch_rewards[start_idx:]))
@@ -71,9 +81,10 @@ class TrainingStatsTracker():
         self.avg_steps.append(np.mean(self.epoch_steps[start_idx:]))
         
         current_epoch = len(self.epoch_rewards)
+        epsilon_str = f", ε={epsilon:.4f}" if epsilon is not None else ""
         logger.info(f"Epoch {current_epoch}: Total Reward={total_reward:.2f}, "
                    f"Avg Reward={avg_reward:.2f}, Score={final_score}, "
-                   f"Steps={self.current_epoch_steps}")
+                   f"Steps={self.current_epoch_steps}{epsilon_str}")
         
         # Reset for next epoch
         self.current_epoch_rewards = []
@@ -128,10 +139,14 @@ class TrainingStatsTracker():
     
     def save_metrics(self, filepath: str):
         """Save training metrics to JSON"""
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        
         data = {
             'epoch_rewards': self.epoch_rewards,
             'epoch_scores': self.epoch_scores,
             'epoch_steps': self.epoch_steps,
+            'epoch_epsilons': self.epoch_epsilons,
             'avg_rewards': self.avg_rewards,
             'avg_scores': self.avg_scores,
             'avg_steps': self.avg_steps,
@@ -148,3 +163,224 @@ class TrainingStatsTracker():
             json.dump(data, f, indent=2)
         
         logger.info(f"Training metrics saved to {filepath}")
+    
+    def save_plots(self, filepath: str, title: str = "Training Progress"):
+        """
+        Save training plots to file
+        
+        Args:
+            filepath: Path to save the plot (e.g., 'plots/training_progress.png')
+            title: Title for the plot
+        """
+        if not self.epoch_rewards:
+            logger.warning("No data to plot yet")
+            return
+        
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        
+        # Determine number of subplots (add epsilon plot if we have epsilon data)
+        has_epsilon = len(self.epoch_epsilons) > 0
+        n_rows = 3 if has_epsilon else 2
+        
+        # Create figure with subplots
+        fig = plt.figure(figsize=(15, 5 * n_rows))
+        fig.suptitle(title, fontsize=16, fontweight='bold')
+        
+        epochs = list(range(1, len(self.epoch_rewards) + 1))
+        
+        # Plot 1: Average Reward over Time
+        ax1 = plt.subplot(n_rows, 2, 1)
+        ax1.plot(epochs, self.epoch_rewards, alpha=0.3, color='blue', label='Total Reward', linewidth=1)
+        ax1.plot(epochs, self.avg_rewards, color='blue', linewidth=2, label=f'Moving Avg ({self.window_size})')
+        ax1.set_xlabel('Epoch', fontsize=12)
+        ax1.set_ylabel('Total Reward', fontsize=12)
+        ax1.set_title('Average Reward Over Time', fontsize=14, fontweight='bold')
+        ax1.legend(loc='best')
+        ax1.grid(True, alpha=0.3)
+        ax1.axhline(y=0, color='red', linestyle='--', linewidth=1, alpha=0.5)
+        
+        # Plot 2: Average Score over Time
+        ax2 = plt.subplot(n_rows, 2, 2)
+        ax2.plot(epochs, self.epoch_scores, alpha=0.3, color='green', label='Score', linewidth=1)
+        ax2.plot(epochs, self.avg_scores, color='green', linewidth=2, label=f'Moving Avg ({self.window_size})')
+        ax2.set_xlabel('Epoch', fontsize=12)
+        ax2.set_ylabel('Score', fontsize=12)
+        ax2.set_title('Average Score Over Time', fontsize=14, fontweight='bold')
+        ax2.legend(loc='best')
+        ax2.grid(True, alpha=0.3)
+        
+        # Plot 3: Average Lifetime (Steps) over Time
+        ax3 = plt.subplot(n_rows, 2, 3)
+        ax3.plot(epochs, self.epoch_steps, alpha=0.3, color='orange', label='Steps', linewidth=1)
+        ax3.plot(epochs, self.avg_steps, color='orange', linewidth=2, label=f'Moving Avg ({self.window_size})')
+        ax3.set_xlabel('Epoch', fontsize=12)
+        ax3.set_ylabel('Steps (Lifetime)', fontsize=12)
+        ax3.set_title('Average Lifetime Over Time', fontsize=14, fontweight='bold')
+        ax3.legend(loc='best')
+        ax3.grid(True, alpha=0.3)
+        
+        # Plot 4: Statistics Summary
+        ax4 = plt.subplot(n_rows, 2, 4)
+        ax4.axis('off')
+        
+        # Calculate statistics
+        stats_text = f"""
+Training Statistics Summary
+
+Total Epochs: {len(self.epoch_rewards):,}
+Unique States Visited: {len(self.visited_states):,}
+
+Recent Performance (last {self.window_size} epochs):
+  • Avg Reward: {self.avg_rewards[-1]:.2f}
+  • Avg Score: {self.avg_scores[-1]:.2f}
+  • Avg Lifetime: {self.avg_steps[-1]:.1f} steps
+
+Best Performance:
+  • Best Score: {max(self.epoch_scores)}
+  • Best Reward: {max(self.epoch_rewards):.2f}
+  • Max Lifetime: {max(self.epoch_steps)} steps
+
+Latest Epoch:
+  • Score: {self.epoch_scores[-1]}
+  • Total Reward: {self.epoch_rewards[-1]:.2f}
+  • Steps: {self.epoch_steps[-1]}
+        """
+        
+        if has_epsilon:
+            stats_text += f"\n  • Epsilon: {self.epoch_epsilons[-1]:.4f}"
+        
+        ax4.text(0.1, 0.5, stats_text, 
+                fontsize=11, 
+                verticalalignment='center',
+                family='monospace',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
+        
+        # Plot 5: Epsilon Decay (if available)
+        if has_epsilon:
+            ax5 = plt.subplot(n_rows, 2, 5)
+            epsilon_epochs = list(range(1, len(self.epoch_epsilons) + 1))
+            ax5.plot(epsilon_epochs, self.epoch_epsilons, color='purple', linewidth=2, label='Epsilon (ε)')
+            ax5.set_xlabel('Epoch', fontsize=12)
+            ax5.set_ylabel('Epsilon Value', fontsize=12)
+            ax5.set_title('Epsilon Decay Over Time', fontsize=14, fontweight='bold')
+            ax5.legend(loc='best')
+            ax5.grid(True, alpha=0.3)
+            ax5.set_ylim([0, max(self.epoch_epsilons) * 1.1])
+        
+        plt.tight_layout()
+        
+        # Save figure
+        plt.savefig(filepath, dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        
+        logger.info(f"Training plots saved to {filepath}")
+    
+    def save_detailed_plots(self, filepath: str, title: str = "Detailed Training Analysis"):
+        """
+        Save more detailed training plots with additional metrics
+        
+        Args:
+            filepath: Path to save the plot (e.g., 'plots/detailed_analysis.png')
+            title: Title for the plot
+        """
+        if not self.epoch_rewards:
+            logger.warning("No data to plot yet")
+            return
+        
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        
+        # Create figure with more subplots
+        fig = plt.figure(figsize=(18, 12))
+        fig.suptitle(title, fontsize=18, fontweight='bold')
+        
+        epochs = np.array(range(1, len(self.epoch_rewards) + 1))
+        
+        # Plot 1: Reward Analysis
+        ax1 = plt.subplot(3, 2, 1)
+        ax1.plot(epochs, self.epoch_rewards, alpha=0.3, color='blue', linewidth=1)
+        ax1.plot(epochs, self.avg_rewards, color='blue', linewidth=2.5)
+        ax1.fill_between(epochs, self.avg_rewards, alpha=0.2, color='blue')
+        ax1.set_xlabel('Epoch')
+        ax1.set_ylabel('Total Reward')
+        ax1.set_title('Total Reward per Epoch')
+        ax1.grid(True, alpha=0.3)
+        ax1.axhline(y=0, color='red', linestyle='--', linewidth=1)
+        
+        # Plot 2: Score Analysis
+        ax2 = plt.subplot(3, 2, 2)
+        ax2.plot(epochs, self.epoch_scores, alpha=0.3, color='green', linewidth=1)
+        ax2.plot(epochs, self.avg_scores, color='green', linewidth=2.5)
+        ax2.fill_between(epochs, self.avg_scores, alpha=0.2, color='green')
+        ax2.set_xlabel('Epoch')
+        ax2.set_ylabel('Score')
+        ax2.set_title('Score per Epoch')
+        ax2.grid(True, alpha=0.3)
+        
+        # Plot 3: Lifetime Analysis
+        ax3 = plt.subplot(3, 2, 3)
+        ax3.plot(epochs, self.epoch_steps, alpha=0.3, color='orange', linewidth=1)
+        ax3.plot(epochs, self.avg_steps, color='orange', linewidth=2.5)
+        ax3.fill_between(epochs, self.avg_steps, alpha=0.2, color='orange')
+        ax3.set_xlabel('Epoch')
+        ax3.set_ylabel('Steps')
+        ax3.set_title('Lifetime (Steps) per Epoch')
+        ax3.grid(True, alpha=0.3)
+        
+        # Plot 4: Reward Distribution (Histogram)
+        ax4 = plt.subplot(3, 2, 4)
+        ax4.hist(self.epoch_rewards, bins=50, color='blue', alpha=0.7, edgecolor='black')
+        ax4.axvline(x=np.mean(self.epoch_rewards), color='red', linestyle='--', linewidth=2, label='Mean')
+        ax4.axvline(x=np.median(self.epoch_rewards), color='green', linestyle='--', linewidth=2, label='Median')
+        ax4.set_xlabel('Total Reward')
+        ax4.set_ylabel('Frequency')
+        ax4.set_title('Reward Distribution')
+        ax4.legend()
+        ax4.grid(True, alpha=0.3, axis='y')
+        
+        # Plot 5: Score vs Lifetime Scatter
+        ax5 = plt.subplot(3, 2, 5)
+        scatter = ax5.scatter(self.epoch_steps, self.epoch_scores, 
+                            c=epochs, cmap='viridis', alpha=0.6, s=20)
+        ax5.set_xlabel('Lifetime (Steps)')
+        ax5.set_ylabel('Score')
+        ax5.set_title('Score vs Lifetime Correlation')
+        ax5.grid(True, alpha=0.3)
+        cbar = plt.colorbar(scatter, ax=ax5)
+        cbar.set_label('Epoch')
+        
+        # Plot 6: Performance Trends (or Epsilon if available)
+        ax6 = plt.subplot(3, 2, 6)
+        
+        if len(self.epoch_epsilons) > 0:
+            # Plot epsilon decay
+            epsilon_epochs = list(range(1, len(self.epoch_epsilons) + 1))
+            ax6.plot(epsilon_epochs, self.epoch_epsilons, color='purple', linewidth=2.5, label='Epsilon (ε)')
+            ax6.set_xlabel('Epoch')
+            ax6.set_ylabel('Epsilon Value')
+            ax6.set_title('Exploration Rate (Epsilon) Over Time')
+            ax6.legend(loc='best')
+            ax6.grid(True, alpha=0.3)
+        else:
+            # Normalize metrics to 0-1 scale for comparison
+            norm_rewards = (np.array(self.avg_rewards) - np.min(self.avg_rewards)) / (np.max(self.avg_rewards) - np.min(self.avg_rewards) + 1e-10)
+            norm_scores = (np.array(self.avg_scores) - np.min(self.avg_scores)) / (np.max(self.avg_scores) - np.min(self.avg_scores) + 1e-10)
+            norm_steps = (np.array(self.avg_steps) - np.min(self.avg_steps)) / (np.max(self.avg_steps) - np.min(self.avg_steps) + 1e-10)
+            
+            ax6.plot(epochs, norm_rewards, label='Avg Reward (norm)', linewidth=2, color='blue')
+            ax6.plot(epochs, norm_scores, label='Avg Score (norm)', linewidth=2, color='green')
+            ax6.plot(epochs, norm_steps, label='Avg Lifetime (norm)', linewidth=2, color='orange')
+            ax6.set_xlabel('Epoch')
+            ax6.set_ylabel('Normalized Value (0-1)')
+            ax6.set_title('Normalized Performance Trends')
+            ax6.legend(loc='best')
+            ax6.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        # Save figure
+        plt.savefig(filepath, dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        
+        logger.info(f"Detailed training plots saved to {filepath}")
