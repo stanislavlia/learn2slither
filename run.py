@@ -258,9 +258,6 @@ def main(sessions, runname, load, save_interval, visual, fps, step_by_step,
                     model_path = (
                         f"./models/{runname}_qtable_{CURRENT_EPOCH}.json"
                     )
-                    metrics_path = (
-                        f"./models/{runname}_metrics_{CURRENT_EPOCH}.json"
-                    )
                     plot_path = (
                         f"./plots/{runname}_training_{CURRENT_EPOCH}.png"
                     )

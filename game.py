@@ -56,7 +56,6 @@ class SnakeGame():
                 f"Window height and width should be divisible by "
                 f"{block_size * 2}"
             )
-        
         pygame.init()
         pygame.font.init()
 
