@@ -62,11 +62,11 @@ class SnakeGame():
         # Panel settings
         self.panel_height = 40
 
-        # Settings
+        # Calculate proper dimensions to fit blocks perfectly
+        playable_rows = (window_height - self.panel_height) // block_size
+        self.height = self.panel_height + (playable_rows * block_size)
         self.width = window_width
-        self.height = window_height
-        # Game area excludes panel
-        self.game_height = window_height - self.panel_height
+        self.game_height = self.height - self.panel_height
         self.block_size = block_size
         self.fps = fps
         self.is_invisible = is_invisible
