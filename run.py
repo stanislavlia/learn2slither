@@ -266,7 +266,6 @@ def main(sessions, runname, load, save_interval, visual, fps, step_by_step,
                     )
 
                     agent.qtable.save_qtable(filepath=model_path)
-                    stats_tracker.save_metrics(filepath=metrics_path)
                     stats_tracker.save_plots(filepath=plot_path)
                     logger.success(
                         f"Checkpoint saved at epoch {CURRENT_EPOCH}"
@@ -291,7 +290,6 @@ def main(sessions, runname, load, save_interval, visual, fps, step_by_step,
             eval_results_path = (
                 f"./models/{runname}_evaluation_results.json"
             )
-            stats_tracker.save_metrics(filepath=eval_results_path)
 
             logger.success(
                 f"Inference complete! {sessions} episodes finished."
