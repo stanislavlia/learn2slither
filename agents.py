@@ -2,7 +2,8 @@ from loguru import logger
 from typing import List, Dict
 import random
 from q_table import QTable
-
+import torch
+from deepqnetwork import DeepQNetwork, ReplayBuffer
 
 class AgentBase():
     def __init__(self):
@@ -101,3 +102,7 @@ class QAgent(AgentBase):
     def get_current_epsilon(self) -> float:
         """Get current epsilon value"""
         return self.qtable.get_current_epsilon()
+
+
+class DeepQAgent(AgentBase):
+    pass
