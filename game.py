@@ -617,3 +617,50 @@ class SnakeGame():
             print(f"\nACTION TAKEN: {action.upper()}")
 
         print("="*50 + "\n")
+
+
+    def full_field_state(self):
+        """
+        Returns full grid state as 4-channel tensor
+        Shape: (rows, cols, 4)
+        Channel 0: Green apples
+        Channel 1: Red apples  
+        Channel 2: Snake body
+        Channel 3: Snake head
+        """
+        rows = self.game_height // self.block_size
+        cols = self.width // self.block_size
+        
+        # Initialize 4-channel state
+        state = np.zeros((rows, cols, 4), dtype=np.float32)
+        
+        # Channel 0: Green apples
+        for apple in self.green_apples:
+            col = apple.x // self.block_size
+            row = (apple.y - self.panel_height) // self.block_size
+            if 0 <= row < rows and 0 <= col < cols:
+                state[row, col, 0] = 1.0
+        
+        # Channel 1: Red apples
+        for apple in self.red_apples:
+            col = apple.x // self.block_size
+            row = (apple.y - self.panel_height) // self.block_size
+            if 0 <= row < rows and 0 <= col < cols:
+                state[row, col, 1] = 1.0
+        
+        # Channel 2: Snake body (excluding head)
+        for segment in self.snake[1:]:  # Skip head (index 0)
+            col = segment.x // self.block_size
+            row = (segment.y - self.panel_height) // self.block_size
+            if 0 <= row < rows and 0 <= col < cols:
+                state[row, col, 2] = 1.0
+        
+        # Channel 3: Snake head
+        if len(self.snake) > 0:
+            head = self.snake[0]
+            col = head.x // self.block_size
+            row = (head.y - self.panel_height) // self.block_size
+            if 0 <= row < rows and 0 <= col < cols:
+                state[row, col, 3] = 1.0
+        
+        return state
