@@ -2,6 +2,7 @@
 
 A reinforcement learning project implementing Q-learning to train an intelligent snake agent that learns to maximize its score through trial and error.
 
+![Snake Game](media/snake.gif)
 ## Project Overview
 
 This project trains a snake agent using **Q-learning**, a value-based reinforcement learning algorithm. The snake learns optimal behavior by interacting with its environment and receiving rewards/penalties for its actions.
@@ -56,6 +57,8 @@ These rewards guide the agent to:
 
 ### 5. Q-Learning Algorithm
 
+![Q-learning](media/qlearning.png)
+
 **Core Concept:** Q-learning learns a Q-table that estimates the expected cumulative reward for taking action `a` in state `s`.
 
 **Q-table Structure:**
@@ -108,6 +111,10 @@ Later training → more exploitation (using learned policy)
      - Update Q-table using Q-learning formula
      - Decay epsilon
 3. **Save model** periodically
+4. **Analyze training history in saved plot**
+![Alt text](media/training_500000.png)
+
+
 
 ### 8. Key Hyperparameters
 
@@ -227,3 +234,7 @@ The Q-table becomes a "cheat sheet" mapping:
 - **Q-learning is off-policy:** Learns optimal policy while following ε-greedy
 - **Temporal Difference learning:** Updates based on immediate reward + estimated future
 - **Model-free:** Agent learns without explicit model of environment dynamics
+
+## References
+1. Hugging Face Deep RL Course: https://huggingface.co/learn/deep-rl-course/en/unit0/introduction
+2. Github repo with implementation of learn2slither - https://github.com/leogaudin/Learn2Slither
