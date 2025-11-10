@@ -105,4 +105,143 @@ class QAgent(AgentBase):
 
 
 class DeepQAgent(AgentBase):
-    pass
+    def __init__(
+        self,
+        n_rows=20,
+        n_cols=20,
+        n_channels=4,
+        n_actions=3,
+        learning_rate=0.001,
+        gamma=0.99,
+        epsilon_start=1.0,
+        epsilon_end=0.01,
+        epsilon_decay=0.995,
+        buffer_capacity=10000,
+        batch_size=64,
+        target_update_freq=100,
+        use_double_dqn=False
+    ):
+
+        self.n_rows = n_rows
+        self.n_cols = n_cols
+        self.n_channels = n_channels
+        self.n_actions = n_actions
+        self.gamma = gamma
+        self.batch_size = batch_size
+        self.target_update_freq = target_update_freq
+        self.use_double_dqn = use_double_dqn
+        
+        # Epsilon-greedy parameters
+        self.epsilon = epsilon_start
+        self.epsilon_start = epsilon_start
+        self.epsilon_end = epsilon_end
+        self.epsilon_decay = epsilon_decay
+        self.learning_rate = learning_rate
+
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
+        logger.info(f"Using device: {self.device}")
+
+        
+        
+        self.policy_network = DeepQNetwork(n_cols=n_cols,
+                                            n_rows=n_rows,
+                                            n_channels=n_channels).to(self.device)
+
+        #frozen 'stable network'
+        self.target_network = DeepQNetwork(n_cols=n_cols,
+                                            n_rows=n_rows,
+                                            n_channels=n_channels).to(self.device)
+        self.target_network.load_state_dict(self.policy_network.state_dict())
+        self.target_network.eval() 
+
+        #replay buffer
+        self.memory = ReplayBuffer(
+            capacity=buffer_capacity
+        )
+        logger.info(f"Initialized buffer with {buffer_capacity} capacity")
+
+
+        self.criterion = torch.nn.MSELoss()
+        self.optimizer = torch.optim.AdamW(params=self.policy_network.parameters(), lr=learning_rate)
+
+        # Training statistics
+        self.steps = 0
+        self.episodes = 0
+        self.total_loss = 0
+        self.loss_count = 0
+
+        logger.info(
+            f"DQN Agent initialized: "
+            f"lr={learning_rate}, gamma={gamma}, "
+            f"batch_size={batch_size}, "
+            f"double_dqn={use_double_dqn}"
+        )
+
+        self.loss_history = []
+
+    def add_experience_to_buffer(self, state, action, reward, next_state, done):
+        self.memory.push(state, action, reward, next_state, done)
+    
+    def make_move_decision(self, state, training=True):
+
+        #explore
+        if training and random.random() <= self.epsilon:
+            action = random.randint(0, self.n_actions - 1)
+            logger.debug(f"Selected Exploration: {action}")
+            return action
+        
+        #exploit
+        with torch.no_grad():
+            state_tensor = torch.from_numpy(state).float()
+            state_tensor = state_tensor.unsqueeze(0) #add batch dimension
+            state_tensor = state_tensor.to(self.device)
+
+            q_vals = self.policy_network(state_tensor).to(self.device)
+            action = torch.argmax(q_vals, dim=1).item()
+            logger.debug(f"Selected Exploitation: {action}")
+
+            return action
+            
+
+    def train_step(self):
+        if len(self.memory) < self.batch_size:
+            return
+        
+        self.optimizer.zero_grad()
+        states, actions, rewards, next_states, dones  = self.memory.sample(self.batch_size)
+
+        states = torch.from_numpy(states).float().to(self.device)
+        actions = torch.from_numpy(actions).long().to(self.device)
+        rewards = torch.from_numpy(rewards).float().to(self.device)
+        next_states = torch.from_numpy(next_states).float().to(self.device)
+        dones = torch.from_numpy(dones).float().to(self.device)
+
+        current_q_values = self.policy_network(states)
+        #select q-value for taken actions
+        current_q_values = current_q_values.gather(dim=1, index=actions.unsqueeze(1)).squeeze(1) #(batch, )
+ 
+        with torch.no_grad():
+            #no need to update target network
+            next_q_target_values = self.target_network(next_states)
+            max_next_q = next_q_target_values.max(dim=1)[0] # (batch, )
+            target_q = rewards + (1 - dones) * self.gamma * max_next_q
+
+
+        loss = self.criterion(current_q_values, target_q)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), max_norm=10)
+        self.optimizer.step()
+
+        self.steps += 1
+        logger.info(f"Step: {self.steps} | Training Loss: {loss}")
+        # Update target network periodically
+        if self.steps % self.target_update_freq == 0:
+            self.target_network.load_state_dict(self.policy_network.state_dict())
+            logger.info(f"Target network updated at step {self.steps}")
+
+        self.loss_history.append(loss.item())
+        return loss.item()
+
+
